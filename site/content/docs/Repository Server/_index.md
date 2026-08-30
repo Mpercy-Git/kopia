@@ -16,6 +16,9 @@ In repository server mode, each user is limited to seeing their own snapshots an
 ## Starting Repository Server
 
 Before starting the repository server, we must first [create and configure a repository](../repositories/#repositories). Finally, we must create a list of usernames and passwords that will be allowed to access it.
+
+>NOTE: When the server is started with the web UI enabled, the repository does not have to exist up front. Starting `kopia server start` without a connected repository serves the UI, which guides you through creating a new repository or connecting to an existing one. If no UI password is provided, the server generates one, stores it in the `server-ui-password` file next to the repository configuration file and prints it on startup. See the [Docker quick start](../installation/#quick-start-with-the-web-ui) for an example.
+
 The repository server should be started in a location where:
 - all kopia clients can connect directly to the server;
 - the latency between the client and the server is low;
@@ -23,7 +26,20 @@ The repository server should be started in a location where:
 
 ### Configuring Allowed Users
 
-Starting in Kopia v0.8, allowed repository users can be configured using `kopia server user` commands. Each user is identified by its lowercase `username@hostname` where hostname by default is the name of the computer the client is connecting from (without domain name suffix).
+Allowed repository users can be configured from the web UI or using `kopia server user` commands. Each user is identified by its lowercase `username@hostname` where hostname by default is the name of the computer the client is connecting from (without domain name suffix).
+
+#### Using The Web UI
+
+When the server is started with the UI enabled, open `/users` on the server (for example http://localhost:51515/users) to add accounts, change their passwords and delete them. Its address is printed on server startup and it requires the same login as the rest of the UI. Changes take effect immediately.
+
+The same operations are available over the HTTP API, which requires the UI credentials and a CSRF token:
+
+* `GET /api/v1/users` - lists user accounts
+* `POST /api/v1/users` - creates an account, body: `{"username":"myuser@mylaptop","password":"..."}`
+* `PUT /api/v1/users/myuser@mylaptop` - changes the password, body: `{"password":"..."}`
+* `DELETE /api/v1/users/myuser@mylaptop` - deletes the account
+
+#### Using The Command Line
 
 To add a user:
 
@@ -34,6 +50,12 @@ Re-enter new password for verification:
 
 Updated user credentials will take effect in 5-10 minutes or when the server is restarted.
 To refresh credentials in a running server use 'kopia server refresh' command.
+```
+
+The password can also be provided non-interactively, which is convenient when the server runs in a container:
+
+```shell
+$ docker exec kopia kopia server user add myuser@mylaptop --user-password "<password>"
 ```
 
 Other commands are also available:

@@ -76,6 +76,29 @@ type PoliciesResponse struct {
 // Empty represents empty request/response.
 type Empty struct{}
 
+// RepositoryUser describes a single repository user account that Kopia clients
+// can use to connect to the repository server.
+type RepositoryUser struct {
+	Username string `json:"username"`
+}
+
+// RepositoryUsersResponse is the response of 'users' HTTP API command.
+type RepositoryUsersResponse struct {
+	Users []RepositoryUser `json:"users"`
+}
+
+// CreateRepositoryUserRequest is the request to create a new repository user account.
+type CreateRepositoryUserRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// SetRepositoryUserPasswordRequest is the request to change the password of an existing
+// repository user account.
+type SetRepositoryUserPasswordRequest struct {
+	Password string `json:"password"`
+}
+
 // APIErrorCode indicates machine-readable error code returned in API responses.
 type APIErrorCode string
 
@@ -93,6 +116,7 @@ const (
 	ErrorPathNotFound       APIErrorCode = "PATH_NOT_FOUND"
 	ErrorStorageConnection  APIErrorCode = "STORAGE_CONNECTION"
 	ErrorAccessDenied       APIErrorCode = "ACCESS_DENIED"
+	ErrorAlreadyExists      APIErrorCode = "ALREADY_EXISTS"
 )
 
 // ErrorResponse represents error response.

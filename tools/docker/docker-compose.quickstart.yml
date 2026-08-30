@@ -1,0 +1,45 @@
+# Minimal Kopia server that is set up entirely from the web UI - no repository
+# and no user accounts have to be created up front.
+#
+#   docker compose -f docker-compose.quickstart.yml up -d
+#   docker compose -f docker-compose.quickstart.yml logs kopia
+#
+# The log prints the address to open in a browser, the username and a randomly
+# generated password (also stored in ./config/server-ui-password). After logging
+# in, the UI guides you through creating a new repository or connecting to an
+# existing one.
+#
+# To use a password of your choice instead of the generated one, set
+# KOPIA_SERVER_PASSWORD below.
+#
+# WARNING: --insecure serves the UI over plain HTTP, which sends the password
+# unencrypted. Only use it on a trusted network or behind a TLS-terminating
+# reverse proxy. See docker-compose.yml for an example using TLS certificates.
+services:
+  kopia:
+    image: kopia/kopia:latest
+    container_name: kopia
+    # containers get a random hostname, set it explicitly so that snapshots are
+    # always attributed to the same host.
+    hostname: kopia-server
+    restart: unless-stopped
+    ports:
+      - 51515:51515
+    command:
+      - server
+      - start
+      - --insecure
+      - --address=0.0.0.0:51515
+    # environment:
+    #   KOPIA_SERVER_PASSWORD: "<your-own-ui-password>"
+    volumes:
+      # kopia configuration, cache and logs
+      - ./config:/app/config
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+      # data to back up
+      - /path/to/data:/data:ro
+      # repository location, only needed when the repository is a local directory
+      - /path/to/repository:/repository
+      # allows browsing mounted snapshots from the host
+      - /path/to/tmp:/tmp:shared

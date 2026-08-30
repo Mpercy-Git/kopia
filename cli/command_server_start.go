@@ -49,6 +49,18 @@ type commandServerStart struct {
 	serverStartRandomPassword  bool
 	serverStartHtpasswdFile    string
 
+	serverStartAutoUIPassword bool
+	serverStartUIPasswordFile string
+
+	// populated by getAuthenticator() when the UI password comes from the UI password file.
+	uiPassword          string
+	uiPasswordFile      string
+	uiPasswordGenerated bool
+
+	// set when the server starts without a repository, so that the startup banner can
+	// point the user at the UI to create or connect one.
+	startedWithoutRepository bool
+
 	randomServerControlPassword bool
 	serverControlUsername       string
 	serverControlPassword       string
@@ -104,6 +116,9 @@ func (c *commandServerStart) setup(svc advancedAppServices, parent commandParent
 	cmd.Flag("without-password", "Start the server without a password").Hidden().BoolVar(&c.serverStartWithoutPassword)
 	cmd.Flag("random-password", "Generate random password and print to stderr").Hidden().BoolVar(&c.serverStartRandomPassword)
 	cmd.Flag("htpasswd-file", "Path to htpasswd file that contains allowed user@hostname entries").Hidden().ExistingFileVar(&c.serverStartHtpasswdFile)
+
+	cmd.Flag("auto-generate-ui-password", "When no UI password is provided, generate a random one, save it and print it on startup").Default("true").BoolVar(&c.serverStartAutoUIPassword)
+	cmd.Flag("ui-password-file", "Path to the file storing the UI password (created with a random password if missing)").Envar(svc.EnvName("KOPIA_UI_PASSWORD_FILE")).StringVar(&c.serverStartUIPasswordFile)
 
 	cmd.Flag("random-server-control-password", "Generate random server control password and print to stderr").Hidden().BoolVar(&c.randomServerControlPassword)
 	cmd.Flag("server-control-username", "Server control username").Default(defaultServerControlUsername).Envar(svc.EnvName("KOPIA_SERVER_CONTROL_USER")).StringVar(&c.serverControlUsername)
@@ -180,6 +195,10 @@ func (c *commandServerStart) serverStartOptions(ctx context.Context) (*server.Op
 }
 
 func (c *commandServerStart) initRepositoryPossiblyAsync(ctx context.Context, srv *server.Server) error {
+	if _, err := os.Stat(c.svc.repositoryConfigFileName()); os.IsNotExist(err) {
+		c.startedWithoutRepository = true
+	}
+
 	initialize := func(ctx context.Context) (repo.Repository, error) {
 		return c.svc.openRepository(ctx, false)
 	}
@@ -377,6 +396,22 @@ func (c *commandServerStart) getAuthenticator(ctx context.Context) (auth.Authent
 		fmt.Fprintln(c.out.stderr(), "SERVER PASSWORD:", randomPassword) //nolint:errcheck
 
 		authenticators = append(authenticators, auth.AuthenticateSingleUser(c.sf.serverUsername, randomPassword))
+
+	case c.serverStartUI && c.serverStartHtpasswdFile == "" && c.serverStartAutoUIPassword:
+		// no UI password was provided - use (and if needed generate) the one stored in the
+		// UI password file, so that the UI is usable without any additional setup.
+		fname := c.uiPasswordFileName()
+
+		password, generated, err := uiPasswordFromFile(fname)
+		if err != nil {
+			return nil, err
+		}
+
+		c.uiPassword = password
+		c.uiPasswordFile = fname
+		c.uiPasswordGenerated = generated
+
+		authenticators = append(authenticators, auth.AuthenticateSingleUser(c.sf.serverUsername, password))
 	}
 
 	// handle server control password
@@ -398,12 +433,21 @@ func (c *commandServerStart) getAuthenticator(ctx context.Context) (auth.Authent
 	}
 
 	log(ctx).Infof(`
-Server will allow connections from users whose accounts are stored in the repository.
-User accounts can be added using 'kopia server user add'.
+Server will also allow connections from Kopia clients using accounts stored in the repository.
+Such accounts can be added using 'kopia server user add <username>@<hostname>'.
 `)
 
 	// handle user accounts stored in the repository
 	authenticators = append(authenticators, auth.AuthenticateRepositoryUsers())
 
 	return auth.CombineAuthenticators(authenticators...), nil
+}
+
+// uiPasswordFileName returns the name of the file storing the server UI password.
+func (c *commandServerStart) uiPasswordFileName() string {
+	if c.serverStartUIPasswordFile != "" {
+		return c.serverStartUIPasswordFile
+	}
+
+	return filepath.Join(filepath.Dir(c.svc.repositoryConfigFileName()), defaultUIPasswordFileName)
 }

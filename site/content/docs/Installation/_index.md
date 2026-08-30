@@ -262,7 +262,49 @@ The following tags are available:
 * `major.minor` - latest patch release for a given major and minor version (e.g. `0.8`)
 * `major.minor.patch` - specific stable release
 
-In order to run Kopia in a docker container, you must:
+#### Quick Start With The Web UI
+
+The fastest way to start is to run Kopia in [server mode](../features/#optional-server-mode-with-api-support-to-centrally-manage-backups-of-multiple-machines) and do the remaining setup in the web UI. Neither a repository nor user accounts need to be created up front:
+
+```shell
+$ docker run -p 51515:51515 \
+    -v /path/to/config/dir:/app/config \
+    -v /path/to/cache/dir:/app/cache \
+    -v /path/to/logs/dir:/app/logs \
+    -v /path/to/data/dir:/data:ro \
+    -v /path/to/repository/dir:/repository \
+    kopia/kopia:latest server start --insecure --address=0.0.0.0:51515
+```
+
+When no password is provided, the server generates a random one for the web UI, stores it in `server-ui-password` in the mounted `/app/config` directory and prints it on startup:
+
+```
+================================================================================
+Open http://0.0.0.0:51515 in a web browser to use the Kopia UI.
+
+Log in with the following credentials:
+
+SERVER USERNAME: kopia
+SERVER PASSWORD: XPQELW32JMMCXLSGKTBNW4UA7G
+
+The password was generated automatically and saved in /app/config/server-ui-password
+To use a password of your choice instead, set the KOPIA_SERVER_PASSWORD environment
+variable or pass --server-password when starting the server.
+
+No repository is connected yet - the UI will guide you through creating a new
+repository or connecting to an existing one.
+================================================================================
+```
+
+Open the printed address in a browser, log in with those credentials and follow the on-screen instructions to create a new repository or connect to an existing one. To let other computers back up to the same repository, add accounts for them at `/users` (for example http://localhost:51515/users); no CLI commands inside the container are needed. To pick your own password instead, set the `KOPIA_SERVER_PASSWORD` environment variable (or pass `--server-password`), or write the password into the `server-ui-password` file before starting the container.
+
+>WARNING: `--insecure` serves the UI over plain HTTP, which sends the password unencrypted. Only use it on a trusted network or behind a reverse proxy that terminates TLS. Alternatively, provide `--tls-cert-file` and `--tls-key-file` to serve the UI over HTTPS.
+
+The [quickstart docker-compose file](https://github.com/kopia/kopia/blob/master/tools/docker/docker-compose.quickstart.yml) provides the same setup for `docker compose`. You can access the interface via http://localhost:51515 or at the server's IP address after starting the container.
+
+#### Running Other Commands
+
+In order to run other Kopia commands in a docker container, you must:
 
 * provide repository password via `KOPIA_PASSWORD` environment variable
 * mount `/app/config` directory in which Kopia will look for `repository.config` file
@@ -286,45 +328,7 @@ $ docker run -e KOPIA_PASSWORD \
     -v /path/to/tmp/dir:/tmp:shared \
 ```
 
-In addition to creating the docker container with *docker run*, the following docker-compose provides an example for setting up a minimal container in [server mode](../features/#optional-server-mode-with-api-support-to-centrally-manage-backups-of-multiple-machines) including the web interface. You can access the interface via http://localhost:51515 or at the server's IP address after starting the container.  
-
-The [sample docker-compose file](https://github.com/kopia/kopia/blob/master/tools/docker/docker-compose.yml) shows various configuration parameters for running Kopia in containers.
-
-```shell
-version: '3.7'
-services:
-    kopia:
-        image: kopia/kopia:latest
-        hostname: Hostname
-        container_name: Kopia
-        restart: unless-stopped
-        ports:
-            - 51515:51515
-        # Setup the server that provides the web gui
-        command:
-            - server
-            - start
-            - --disable-csrf-token-checks
-            - --insecure
-            - --address=0.0.0.0:51515
-            - --server-username=USERNAME
-            - --server-password=SECRET_PASSWORD
-        environment:
-            # Set repository password
-            KOPIA_PASSWORD: "SECRET"
-            USER: "User"
-        volumes:
-            # Mount local folders needed by kopia
-            - /path/to/config/dir:/app/config
-            - /path/to/cache/dir:/app/cache
-            - /path/to/logs/dir:/app/logs
-            # Mount local folders to snapshot
-            - /path/to/data/dir:/data:ro
-            # Mount repository location
-            - /path/to/repository/dir:/repository
-            # Mount path for browsing mounted snapshots
-            - /path/to/tmp/dir:/tmp:shared
-```
+The [sample docker-compose file](https://github.com/kopia/kopia/blob/master/tools/docker/docker-compose.yml) shows various configuration parameters for running Kopia in containers, including serving the UI over TLS.
 
 Because the Docker environment uses random hostnames for its containers, it is recommended to explicitly set them using `hostname`. The name will be persisted in a configuration file and used afterwards.
 
