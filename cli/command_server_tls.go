@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/kopia/kopia/internal/insecureserverbind"
+	"github.com/kopia/kopia/internal/server"
 	"github.com/kopia/kopia/internal/tlsutil"
 )
 
@@ -225,6 +226,9 @@ func (c *commandServerStart) startupBannerText(url string) string {
 		b.WriteString("\nNo repository is connected yet - the UI will guide you through creating a new\n")
 		b.WriteString("repository or connecting to an existing one.\n")
 	}
+
+	b.WriteString("\nAccounts for other computers backing up to this repository can be managed at\n")
+	b.WriteString(url + server.UsersPagePath + "\n")
 
 	b.WriteString(separator)
 

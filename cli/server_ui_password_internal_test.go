@@ -70,7 +70,7 @@ func TestStartupBannerText(t *testing.T) {
 		{
 			name:        "UI without generated password",
 			command:     commandServerStart{serverStartUI: true},
-			wantStrings: []string{"http://localhost:51515"},
+			wantStrings: []string{"http://localhost:51515", "http://localhost:51515/users"},
 			notWant:     []string{"SERVER PASSWORD:", "No repository is connected"},
 		},
 		{
