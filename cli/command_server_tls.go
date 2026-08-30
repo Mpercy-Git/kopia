@@ -24,7 +24,12 @@ import (
 	"github.com/kopia/kopia/internal/tlsutil"
 )
 
-const oneDay = 24 * time.Hour
+const (
+	oneDay = 24 * time.Hour
+
+	// width of the separator line in the server startup banner.
+	bannerWidth = 80
+)
 
 func (c *commandServerStart) generateServerCertificate(ctx context.Context) (*x509.Certificate, *rsa.PrivateKey, error) {
 	cert, key, err := tlsutil.GenerateServerCertificate(
@@ -130,8 +135,7 @@ func (c *commandServerStart) startServerWithOptionalTLSAndListener(ctx context.C
 	switch {
 	case c.serverStartTLSCertFile != "" && c.serverStartTLSKeyFile != "":
 		// PEM files provided
-		fmt.Fprintf(c.out.stderr(), "SERVER ADDRESS: %shttps://%v\n", udsPfx, httpServer.Addr) //nolint:errcheck
-		c.showServerUIPrompt(ctx)
+		c.showServerAddressAndStartupBanner(fmt.Sprintf("%shttps://%v", udsPfx, httpServer.Addr))
 
 		return checkErrServerClosed(ctx, httpServer.ServeTLS(listener, c.serverStartTLSCertFile, c.serverStartTLSKeyFile), "error starting TLS server")
 
@@ -166,8 +170,7 @@ func (c *commandServerStart) startServerWithOptionalTLSAndListener(ctx context.C
 			fmt.Fprintf(c.out.stderr(), "SERVER CERTIFICATE: %v\n", base64.StdEncoding.EncodeToString(b.Bytes())) //nolint:errcheck
 		}
 
-		fmt.Fprintf(c.out.stderr(), "SERVER ADDRESS: %shttps://%v\n", udsPfx, httpServer.Addr) //nolint:errcheck
-		c.showServerUIPrompt(ctx)
+		c.showServerAddressAndStartupBanner(fmt.Sprintf("%shttps://%v", udsPfx, httpServer.Addr))
 
 		return checkErrServerClosed(ctx, httpServer.ServeTLS(listener, "", ""), "error starting TLS server")
 
@@ -176,17 +179,56 @@ func (c *commandServerStart) startServerWithOptionalTLSAndListener(ctx context.C
 			return errors.New("TLS not configured. To start server without encryption pass --insecure")
 		}
 
-		fmt.Fprintf(c.out.stderr(), "SERVER ADDRESS: %shttp://%v\n", udsPfx, httpServer.Addr) //nolint:errcheck
-		c.showServerUIPrompt(ctx)
+		c.showServerAddressAndStartupBanner(fmt.Sprintf("%shttp://%v", udsPfx, httpServer.Addr))
 
 		return checkErrServerClosed(ctx, httpServer.Serve(listener), "error starting server")
 	}
 }
 
-func (c *commandServerStart) showServerUIPrompt(ctx context.Context) {
-	if c.serverStartUI {
-		log(ctx).Info("Open the address above in a web browser to use the UI.")
+// showServerAddressAndStartupBanner prints a banner telling the user how to start using the UI,
+// followed by the address the server is listening on. The address is printed last because tools
+// launching the server (such as KopiaUI) treat it as the last line of the startup preamble.
+func (c *commandServerStart) showServerAddressAndStartupBanner(url string) {
+	fmt.Fprint(c.out.stderr(), c.startupBannerText(url)+"SERVER ADDRESS: "+url+"\n") //nolint:errcheck
+}
+
+// startupBannerText returns human-readable instructions printed when the server starts,
+// including auto-generated UI credentials, if any.
+func (c *commandServerStart) startupBannerText(url string) string {
+	if !c.serverStartUI {
+		return ""
 	}
+
+	var b strings.Builder
+
+	separator := strings.Repeat("=", bannerWidth) + "\n"
+
+	b.WriteString(separator)
+	b.WriteString("Open " + url + " in a web browser to use the Kopia UI.\n")
+
+	if c.uiPassword != "" {
+		b.WriteString("\nLog in with the following credentials:\n\n")
+		b.WriteString("SERVER USERNAME: " + c.sf.serverUsername + "\n")
+		b.WriteString("SERVER PASSWORD: " + c.uiPassword + "\n")
+
+		if c.uiPasswordGenerated {
+			b.WriteString("\nThe password was generated automatically and saved in " + c.uiPasswordFile + "\n")
+		} else {
+			b.WriteString("\nThe password is stored in " + c.uiPasswordFile + "\n")
+		}
+
+		b.WriteString("To use a password of your choice instead, set the KOPIA_SERVER_PASSWORD environment\n")
+		b.WriteString("variable or pass --server-password when starting the server.\n")
+	}
+
+	if c.startedWithoutRepository {
+		b.WriteString("\nNo repository is connected yet - the UI will guide you through creating a new\n")
+		b.WriteString("repository or connecting to an existing one.\n")
+	}
+
+	b.WriteString(separator)
+
+	return b.String()
 }
 
 func checkErrServerClosed(ctx context.Context, err error, msg string) error {

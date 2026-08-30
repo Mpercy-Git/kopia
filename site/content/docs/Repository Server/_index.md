@@ -16,6 +16,9 @@ In repository server mode, each user is limited to seeing their own snapshots an
 ## Starting Repository Server
 
 Before starting the repository server, we must first [create and configure a repository](../repositories/#repositories). Finally, we must create a list of usernames and passwords that will be allowed to access it.
+
+>NOTE: When the server is started with the web UI enabled, the repository does not have to exist up front. Starting `kopia server start` without a connected repository serves the UI, which guides you through creating a new repository or connecting to an existing one. If no UI password is provided, the server generates one, stores it in the `server-ui-password` file next to the repository configuration file and prints it on startup. See the [Docker quick start](../installation/#quick-start-with-the-web-ui) for an example.
+
 The repository server should be started in a location where:
 - all kopia clients can connect directly to the server;
 - the latency between the client and the server is low;
@@ -34,6 +37,12 @@ Re-enter new password for verification:
 
 Updated user credentials will take effect in 5-10 minutes or when the server is restarted.
 To refresh credentials in a running server use 'kopia server refresh' command.
+```
+
+The password can also be provided non-interactively, which is convenient when the server runs in a container:
+
+```shell
+$ docker exec kopia kopia server user add myuser@mylaptop --user-password "<password>"
 ```
 
 Other commands are also available:
