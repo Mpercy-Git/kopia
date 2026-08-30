@@ -172,6 +172,16 @@ func (s *Server) SetupHTMLUIAPIHandlers(m *mux.Router) {
 	m.HandleFunc("/api/v1/notificationProfiles", s.handleUI(handleNotificationProfileList)).Methods(http.MethodGet)
 
 	m.HandleFunc("/api/v1/testNotificationProfile", s.handleUI(handleNotificationProfileTest)).Methods(http.MethodPost)
+
+	// repository user accounts used by Kopia clients connecting to the repository server.
+	m.HandleFunc("/api/v1/users", s.handleUI(handleRepositoryUserList)).Methods(http.MethodGet)
+	m.HandleFunc("/api/v1/users", s.handleUI(handleRepositoryUserCreate)).Methods(http.MethodPost)
+	m.HandleFunc("/api/v1/users/{username}", s.handleUI(handleRepositoryUserSetPassword)).Methods(http.MethodPut)
+	m.HandleFunc("/api/v1/users/{username}", s.handleUI(handleRepositoryUserDelete)).Methods(http.MethodDelete)
+
+	// user management page, registered before the static file handler which serves
+	// everything else under "/".
+	m.HandleFunc(UsersPagePath, s.serveUsersPage).Methods(http.MethodGet)
 }
 
 // SetupControlAPIHandlers registers control API handlers.
@@ -778,6 +788,25 @@ func (s *Server) patchIndexBytes(sessionID string, b []byte) []byte {
 	return b
 }
 
+// ensureSessionID returns the ID of the caller's UI session, starting a new session and
+// setting the session cookie when the caller does not have one yet.
+func (s *Server) ensureSessionID(w http.ResponseWriter, r *http.Request) string {
+	if cookie, err := r.Cookie(kopiaSessionCookie); err == nil {
+		// already in a session, likely a new tab was opened
+		return cookie.Value
+	}
+
+	sessionID := uuid.NewString()
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  kopiaSessionCookie,
+		Value: sessionID,
+		Path:  "/",
+	})
+
+	return sessionID
+}
+
 func maybeReadIndexBytes(fs http.FileSystem) []byte {
 	rootFile, err := fs.Open("index.html")
 	if err != nil {
@@ -825,22 +854,7 @@ func (s *Server) ServeStaticFiles(m *mux.Router, fs http.FileSystem) {
 		}
 
 		if r.URL.Path == "/" && indexBytes != nil {
-			var sessionID string
-
-			if cookie, err := r.Cookie(kopiaSessionCookie); err == nil {
-				// already in a session, likely a new tab was opened
-				sessionID = cookie.Value
-			} else {
-				sessionID = uuid.NewString()
-
-				http.SetCookie(w, &http.Cookie{
-					Name:  kopiaSessionCookie,
-					Value: sessionID,
-					Path:  "/",
-				})
-			}
-
-			http.ServeContent(w, r, "/", clock.Now(), bytes.NewReader(s.patchIndexBytes(sessionID, indexBytes)))
+			http.ServeContent(w, r, "/", clock.Now(), bytes.NewReader(s.patchIndexBytes(s.ensureSessionID(w, r), indexBytes)))
 
 			return
 		}

@@ -3,6 +3,7 @@ package serverapi
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -243,4 +244,44 @@ func matchSourceParameters(match *snapshot.SourceInfo) string {
 	}
 
 	return "?" + strings.Join(clauses, "&")
+}
+
+// ListRepositoryUsers lists repository user accounts.
+func ListRepositoryUsers(ctx context.Context, c *apiclient.KopiaAPIClient) (*RepositoryUsersResponse, error) {
+	resp := &RepositoryUsersResponse{}
+	if err := c.Get(ctx, "users", nil, resp); err != nil {
+		return nil, errors.Wrap(err, "ListRepositoryUsers")
+	}
+
+	return resp, nil
+}
+
+// CreateRepositoryUser creates a repository user account with the provided password.
+func CreateRepositoryUser(ctx context.Context, c *apiclient.KopiaAPIClient, req *CreateRepositoryUserRequest) error {
+	resp := &Empty{}
+	if err := c.Post(ctx, "users", req, resp); err != nil {
+		return errors.Wrap(err, "CreateRepositoryUser")
+	}
+
+	return nil
+}
+
+// SetRepositoryUserPassword changes the password of an existing repository user account.
+func SetRepositoryUserPassword(ctx context.Context, c *apiclient.KopiaAPIClient, username string, req *SetRepositoryUserPasswordRequest) error {
+	resp := &Empty{}
+	if err := c.Put(ctx, "users/"+url.PathEscape(username), req, resp); err != nil {
+		return errors.Wrap(err, "SetRepositoryUserPassword")
+	}
+
+	return nil
+}
+
+// DeleteRepositoryUser deletes a repository user account.
+func DeleteRepositoryUser(ctx context.Context, c *apiclient.KopiaAPIClient, username string) error {
+	resp := &Empty{}
+	if err := c.Delete(ctx, "users/"+url.PathEscape(username), nil, &Empty{}, resp); err != nil {
+		return errors.Wrap(err, "DeleteRepositoryUser")
+	}
+
+	return nil
 }

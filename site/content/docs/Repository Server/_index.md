@@ -26,7 +26,20 @@ The repository server should be started in a location where:
 
 ### Configuring Allowed Users
 
-Starting in Kopia v0.8, allowed repository users can be configured using `kopia server user` commands. Each user is identified by its lowercase `username@hostname` where hostname by default is the name of the computer the client is connecting from (without domain name suffix).
+Allowed repository users can be configured from the web UI or using `kopia server user` commands. Each user is identified by its lowercase `username@hostname` where hostname by default is the name of the computer the client is connecting from (without domain name suffix).
+
+#### Using The Web UI
+
+When the server is started with the UI enabled, open `/users` on the server (for example http://localhost:51515/users) to add accounts, change their passwords and delete them. Its address is printed on server startup and it requires the same login as the rest of the UI. Changes take effect immediately.
+
+The same operations are available over the HTTP API, which requires the UI credentials and a CSRF token:
+
+* `GET /api/v1/users` - lists user accounts
+* `POST /api/v1/users` - creates an account, body: `{"username":"myuser@mylaptop","password":"..."}`
+* `PUT /api/v1/users/myuser@mylaptop` - changes the password, body: `{"password":"..."}`
+* `DELETE /api/v1/users/myuser@mylaptop` - deletes the account
+
+#### Using The Command Line
 
 To add a user:
 

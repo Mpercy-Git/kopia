@@ -296,7 +296,7 @@ repository or connecting to an existing one.
 ================================================================================
 ```
 
-Open the printed address in a browser, log in with those credentials and follow the on-screen instructions to create a new repository or connect to an existing one. To pick your own password instead, set the `KOPIA_SERVER_PASSWORD` environment variable (or pass `--server-password`), or write the password into the `server-ui-password` file before starting the container.
+Open the printed address in a browser, log in with those credentials and follow the on-screen instructions to create a new repository or connect to an existing one. To let other computers back up to the same repository, add accounts for them at `/users` (for example http://localhost:51515/users); no CLI commands inside the container are needed. To pick your own password instead, set the `KOPIA_SERVER_PASSWORD` environment variable (or pass `--server-password`), or write the password into the `server-ui-password` file before starting the container.
 
 >WARNING: `--insecure` serves the UI over plain HTTP, which sends the password unencrypted. Only use it on a trusted network or behind a reverse proxy that terminates TLS. Alternatively, provide `--tls-cert-file` and `--tls-key-file` to serve the UI over HTTPS.
 
