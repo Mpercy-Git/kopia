@@ -76,6 +76,25 @@ func TestPushover(t *testing.T) {
 	require.Equal(t, "user-key1", body["user"])
 	require.Equal(t, "1", body["html"])
 	require.Equal(t, "Test\n\n<p>This is a HTML test</p>", body["message"])
+	require.Nil(t, body["device"])
+
+	pd, err := sender.GetSender(ctx, "my-device-profile", "pushover", &pushover.Options{
+		AppToken: "app-token1",
+		UserKey:  "user-key1",
+		Device:   "phone1,tablet2",
+		Endpoint: server.URL + "/some-path",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Pushover user \"user-key1\" app \"app-token1\" device \"phone1,tablet2\" format \"txt\"", pd.Summary())
+
+	require.NoError(t, pd.Send(ctx, &sender.Message{Subject: "Test", Body: "device test"}))
+	require.Len(t, requests, 3)
+
+	// Device-targeted request
+	body = nil
+	require.NoError(t, json.NewDecoder(&requestBodies[2]).Decode(&body))
+	require.Equal(t, "phone1,tablet2", body["device"])
+	require.Equal(t, "Test\n\ndevice test", body["message"])
 
 	p2, err := sender.GetSender(ctx, "my-profile", "pushover", &pushover.Options{
 		AppToken: "app-token1",
@@ -116,13 +135,16 @@ func TestMergeOptions(t *testing.T) {
 
 	require.Equal(t, "app1", dst.AppToken)
 	require.Equal(t, "user1", dst.UserKey)
+	require.Empty(t, dst.Device)
 
 	require.NoError(t, pushover.MergeOptions(context.Background(), pushover.Options{
 		UserKey: "user2",
+		Device:  "phone1",
 	}, &dst, true))
 
 	require.Equal(t, "app1", dst.AppToken)
 	require.Equal(t, "user2", dst.UserKey)
+	require.Equal(t, "phone1", dst.Device)
 
 	require.NoError(t, pushover.MergeOptions(context.Background(), pushover.Options{
 		AppToken: "app2",
@@ -131,4 +153,5 @@ func TestMergeOptions(t *testing.T) {
 
 	require.Equal(t, "app2", dst.AppToken)
 	require.Equal(t, "user2", dst.UserKey)
+	require.Equal(t, "phone1", dst.Device)
 }

@@ -12,7 +12,8 @@ import (
 type Options struct {
 	AppToken string `json:"appToken"`
 	UserKey  string `json:"userKey"`
-	Format   string `json:"format"` // format of the message, must be "html" or "md"
+	Device   string `json:"device,omitempty"` // optional device name(s), comma-separated; all devices if empty
+	Format   string `json:"format"`           // format of the message, must be "html" or "md"
 
 	Endpoint string `json:"endpoint,omitempty"` // override the default endpoint for testing
 }
@@ -38,6 +39,7 @@ func (o *Options) ApplyDefaultsAndValidate(_ context.Context) error {
 func MergeOptions(ctx context.Context, src Options, dst *Options, isUpdate bool) error {
 	copyOrMerge(&dst.AppToken, src.AppToken, isUpdate)
 	copyOrMerge(&dst.UserKey, src.UserKey, isUpdate)
+	copyOrMerge(&dst.Device, src.Device, isUpdate)
 
 	return dst.ApplyDefaultsAndValidate(ctx)
 }

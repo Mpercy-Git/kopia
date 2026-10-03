@@ -18,6 +18,7 @@ func (c *commandNotificationConfigurePushover) setup(svc appServices, parent com
 
 	cmd.Flag("app-token", "Pushover App Token").StringVar(&c.opt.AppToken)
 	cmd.Flag("user-key", "Pushover User Key").StringVar(&c.opt.UserKey)
+	cmd.Flag("device", "Pushover device name(s) to send to, comma-separated (default: all devices)").StringVar(&c.opt.Device)
 	cmd.Flag("format", "Format of the message").EnumVar(&c.opt.Format, sender.FormatHTML, sender.FormatPlainText)
 
 	cmd.Action(configureNotificationAction(svc, &c.common, pushover.ProviderType, &c.opt, pushover.MergeOptions))

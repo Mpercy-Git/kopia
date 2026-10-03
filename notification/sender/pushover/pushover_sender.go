@@ -30,6 +30,10 @@ func (p *pushoverProvider) Send(ctx context.Context, msg *sender.Message) error 
 		"message": msg.Subject + "\n\n" + msg.Body,
 	}
 
+	if p.opt.Device != "" {
+		payload["device"] = p.opt.Device
+	}
+
 	if p.Format() == "html" {
 		payload["html"] = "1"
 	}
@@ -66,6 +70,10 @@ func (p *pushoverProvider) Send(ctx context.Context, msg *sender.Message) error 
 }
 
 func (p *pushoverProvider) Summary() string {
+	if p.opt.Device != "" {
+		return fmt.Sprintf("Pushover user %q app %q device %q format %q", p.opt.UserKey, p.opt.AppToken, p.opt.Device, p.Format())
+	}
+
 	return fmt.Sprintf("Pushover user %q app %q format %q", p.opt.UserKey, p.opt.AppToken, p.Format())
 }
 
